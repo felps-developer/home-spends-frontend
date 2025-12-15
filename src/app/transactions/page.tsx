@@ -7,24 +7,6 @@ import { usePeopleStore } from "@/stores/people";
 import { useCategoriesStore } from "@/stores/categories";
 import { usePeopleResource } from "@/hooks/api/usePeopleResource";
 import { useCategoriesResource } from "@/hooks/api/useCategoriesResource";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,10 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { CreateTransactionDto } from "@/types/transaction";
-import { TransactionType } from "@/types/person";
-import { CategoryPurpose } from "@/types/person";
-import { Plus } from "lucide-react";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { CreateDialog } from "@/components/shared/CreateDialog";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { formatCurrency } from "@/lib/utils/format";
+import { getTypeLabel } from "@/lib/utils/labels";
+import type { CreateTransactionDto, Transaction } from "@/types/transaction";
+import { TransactionType, CategoryPurpose } from "@/types/person";
 
 /**
  * Página de listagem e gerenciamento de transações.
@@ -54,9 +39,15 @@ export default function TransactionsPage() {
   const categoriesResource = useCategoriesResource();
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState<CreateTransactionDto>({
+  const [formData, setFormData] = useState<{
+    description: string;
+    value: string; // Usar string para permitir campo vazio
+    type: TransactionType;
+    categoryId: string;
+    personId: string;
+  }>({
     description: "",
-    value: 0,
+    value: "",
     type: TransactionType.Expense,
     categoryId: "",
     personId: "",
@@ -110,8 +101,9 @@ export default function TransactionsPage() {
   }
 
   async function handleCreate() {
-    if (!formData.description || formData.value <= 0 || !formData.categoryId || !formData.personId) {
-      alert("Preencha todos os campos corretamente");
+    const value = parseFloat(formData.value);
+    if (!formData.description || !formData.value || isNaN(value) || value <= 0 || !formData.categoryId || !formData.personId) {
+      alert("Preencha todos os campos corretamente. O valor deve ser um número positivo.");
       return;
     }
 
@@ -123,11 +115,17 @@ export default function TransactionsPage() {
 
     setLoading(true);
     try {
-      await transactionsResource.create(formData);
+      await transactionsResource.create({
+        description: formData.description,
+        value: value,
+        type: formData.type,
+        categoryId: formData.categoryId,
+        personId: formData.personId,
+      });
       setOpen(false);
       setFormData({
         description: "",
-        value: 0,
+        value: "",
         type: TransactionType.Expense,
         categoryId: "",
         personId: "",
@@ -141,40 +139,52 @@ export default function TransactionsPage() {
     }
   }
 
-  function formatCurrency(value: number): string {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  }
-
-  function getTypeLabel(type: TransactionType): string {
-    return type === TransactionType.Expense ? "Despesa" : "Receita";
-  }
+  const columns: Column<Transaction>[] = [
+    {
+      key: "description",
+      header: "Descrição",
+      render: (transaction) => (
+        <span className="font-medium">{transaction.description}</span>
+      ),
+    },
+    {
+      key: "person",
+      header: "Pessoa",
+      render: (transaction) => transaction.person.name,
+    },
+    {
+      key: "category",
+      header: "Categoria",
+      render: (transaction) => transaction.category.description,
+    },
+    {
+      key: "type",
+      header: "Tipo",
+      render: (transaction) => getTypeLabel(transaction.type),
+    },
+    {
+      key: "value",
+      header: "Valor",
+      className: "text-right",
+      render: (transaction) => formatCurrency(transaction.value),
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Transações</h1>
-          <p className="text-muted-foreground">
-            Gerencie as transações financeiras
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Transação
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Nova Transação</DialogTitle>
-              <DialogDescription>
-                Preencha os dados para cadastrar uma nova transação
-              </DialogDescription>
-            </DialogHeader>
+      <PageHeader
+        title="Transações"
+        description="Gerencie as transações financeiras"
+        action={
+          <CreateDialog
+            title="Nova Transação"
+            description="Preencha os dados para cadastrar uma nova transação"
+            triggerLabel="Nova Transação"
+            open={open}
+            onOpenChange={setOpen}
+            onSubmit={handleCreate}
+            loading={loading}
+          >
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="person">Pessoa</Label>
@@ -289,67 +299,24 @@ export default function TransactionsPage() {
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      value: parseFloat(e.target.value) || 0,
+                      value: e.target.value,
                     })
                   }
                   placeholder="0.00"
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleCreate} disabled={loading}>
-                Criar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </CreateDialog>
+        }
+      />
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Pessoa</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading && transactions.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center">
-                  Carregando...
-                </TableCell>
-              </TableRow>
-            ) : transactions.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center">
-                  Nenhuma transação cadastrada
-                </TableCell>
-              </TableRow>
-            ) : (
-              transactions.map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell className="font-medium">
-                    {transaction.description}
-                  </TableCell>
-                  <TableCell>{transaction.person.name}</TableCell>
-                  <TableCell>{transaction.category.description}</TableCell>
-                  <TableCell>{getTypeLabel(transaction.type)}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(transaction.value)}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        data={transactions}
+        columns={columns}
+        loading={loading}
+        emptyMessage="Nenhuma transação cadastrada"
+        getRowKey={(transaction) => transaction.id}
+      />
     </div>
   );
 }

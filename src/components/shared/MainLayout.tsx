@@ -12,11 +12,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: "📊" },
+    { name: "Relatórios", href: "/", icon: "📈" },
     { name: "Pessoas", href: "/people", icon: "👥" },
     { name: "Categorias", href: "/categories", icon: "📁" },
     { name: "Transações", href: "/transactions", icon: "💰" },
-    { name: "Relatórios", href: "/reports", icon: "📈" },
   ];
 
   return (

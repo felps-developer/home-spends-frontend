@@ -3,24 +3,6 @@
 import { useEffect, useState } from "react";
 import { useCategoriesResource } from "@/hooks/api/useCategoriesResource";
 import { useCategoriesStore } from "@/stores/categories";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,9 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { CreateCategoryDto } from "@/types/category";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { CreateDialog } from "@/components/shared/CreateDialog";
+import { PageHeader } from "@/components/shared/PageHeader";
+import type { CreateCategoryDto, Category } from "@/types/category";
 import { CategoryPurpose } from "@/types/person";
-import { Plus } from "lucide-react";
+import { getPurposeLabel } from "@/lib/utils/labels";
 
 /**
  * Página de listagem e gerenciamento de categorias.
@@ -83,42 +68,36 @@ export default function CategoriesPage() {
     }
   }
 
-  function getPurposeLabel(purpose: CategoryPurpose): string {
-    switch (purpose) {
-      case CategoryPurpose.Expense:
-        return "Despesa";
-      case CategoryPurpose.Income:
-        return "Receita";
-      case CategoryPurpose.Both:
-        return "Ambas";
-      default:
-        return "";
-    }
-  }
+  const columns: Column<Category>[] = [
+    {
+      key: "description",
+      header: "Descrição",
+      render: (category) => (
+        <span className="font-medium">{category.description}</span>
+      ),
+    },
+    {
+      key: "purpose",
+      header: "Finalidade",
+      render: (category) => getPurposeLabel(category.purpose),
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Categorias</h1>
-          <p className="text-muted-foreground">
-            Gerencie as categorias de transações
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Categoria
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nova Categoria</DialogTitle>
-              <DialogDescription>
-                Preencha os dados para cadastrar uma nova categoria
-              </DialogDescription>
-            </DialogHeader>
+      <PageHeader
+        title="Categorias"
+        description="Gerencie as categorias de transações"
+        action={
+          <CreateDialog
+            title="Nova Categoria"
+            description="Preencha os dados para cadastrar uma nova categoria"
+            triggerLabel="Nova Categoria"
+            open={open}
+            onOpenChange={setOpen}
+            onSubmit={handleCreate}
+            loading={loading}
+          >
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="description">Descrição</Label>
@@ -159,52 +138,17 @@ export default function CategoriesPage() {
                 </Select>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleCreate} disabled={loading}>
-                Criar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </CreateDialog>
+        }
+      />
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Finalidade</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading && categories.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={2} className="text-center">
-                  Carregando...
-                </TableCell>
-              </TableRow>
-            ) : categories.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={2} className="text-center">
-                  Nenhuma categoria cadastrada
-                </TableCell>
-              </TableRow>
-            ) : (
-              categories.map((category) => (
-                <TableRow key={category.id}>
-                  <TableCell className="font-medium">
-                    {category.description}
-                  </TableCell>
-                  <TableCell>{getPurposeLabel(category.purpose)}</TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        data={categories}
+        columns={columns}
+        loading={loading}
+        emptyMessage="Nenhuma categoria cadastrada"
+        getRowKey={(category) => category.id}
+      />
     </div>
   );
 }

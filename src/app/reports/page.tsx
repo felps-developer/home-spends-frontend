@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils/format";
 import type { PersonTotalsReport, CategoryTotalsReport } from "@/types/reports";
 
 /**
@@ -54,13 +55,6 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  function formatCurrency(value: number): string {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
   }
 
   return (

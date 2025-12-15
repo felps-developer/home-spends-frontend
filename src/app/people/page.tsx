@@ -4,27 +4,13 @@ import { useEffect, useState } from "react";
 import { usePeopleResource } from "@/hooks/api/usePeopleResource";
 import { usePeopleStore } from "@/stores/people";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DataTable, Column } from "@/components/shared/DataTable";
+import { CreateDialog } from "@/components/shared/CreateDialog";
+import { PageHeader } from "@/components/shared/PageHeader";
 import type { Person, CreatePersonDto } from "@/types/person";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 /**
  * Página de listagem e gerenciamento de pessoas.
@@ -35,9 +21,12 @@ export default function PeoplePage() {
   const resource = usePeopleResource();
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState<CreatePersonDto>({
+  const [formData, setFormData] = useState<{
+    name: string;
+    age: string; // Usar string para permitir campo vazio
+  }>({
     name: "",
-    age: 0,
+    age: "",
   });
 
   useEffect(() => {
@@ -56,16 +45,20 @@ export default function PeoplePage() {
   }
 
   async function handleCreate() {
-    if (!formData.name || formData.age <= 0) {
-      alert("Preencha todos os campos corretamente");
+    const age = parseInt(formData.age);
+    if (!formData.name || !formData.age || isNaN(age) || age <= 0) {
+      alert("Preencha todos os campos corretamente. A idade deve ser um número positivo.");
       return;
     }
 
     setLoading(true);
     try {
-      await resource.create(formData);
+      await resource.create({
+        name: formData.name,
+        age: age,
+      });
       setOpen(false);
-      setFormData({ name: "", age: 0 });
+      setFormData({ name: "", age: "" });
       await loadData();
     } catch (error: any) {
       console.error("Erro ao criar pessoa:", error);
@@ -92,29 +85,49 @@ export default function PeoplePage() {
     }
   }
 
+  const columns: Column<Person>[] = [
+    {
+      key: "name",
+      header: "Nome",
+      render: (person) => <span className="font-medium">{person.name}</span>,
+    },
+    {
+      key: "age",
+      header: "Idade",
+      render: (person) => `${person.age} anos`,
+    },
+    {
+      key: "actions",
+      header: "Ações",
+      className: "text-right",
+      render: (person) => (
+        <Button
+          variant="destructive"
+          size="icon"
+          onClick={() => handleDelete(person.id)}
+          disabled={loading}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pessoas</h1>
-          <p className="text-muted-foreground">
-            Gerencie as pessoas cadastradas no sistema
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Pessoa
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nova Pessoa</DialogTitle>
-              <DialogDescription>
-                Preencha os dados para cadastrar uma nova pessoa
-              </DialogDescription>
-            </DialogHeader>
+      <PageHeader
+        title="Pessoas"
+        description="Gerencie as pessoas cadastradas no sistema"
+        action={
+          <CreateDialog
+            title="Nova Pessoa"
+            description="Preencha os dados para cadastrar uma nova pessoa"
+            triggerLabel="Nova Pessoa"
+            open={open}
+            onOpenChange={setOpen}
+            onSubmit={handleCreate}
+            loading={loading}
+          >
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="name">Nome</Label>
@@ -135,67 +148,23 @@ export default function PeoplePage() {
                   min="1"
                   value={formData.age}
                   onChange={(e) =>
-                    setFormData({ ...formData, age: parseInt(e.target.value) || 0 })
+                    setFormData({ ...formData, age: e.target.value })
                   }
                   placeholder="Idade"
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleCreate} disabled={loading}>
-                Criar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </CreateDialog>
+        }
+      />
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Idade</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading && people.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center">
-                  Carregando...
-                </TableCell>
-              </TableRow>
-            ) : people.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center">
-                  Nenhuma pessoa cadastrada
-                </TableCell>
-              </TableRow>
-            ) : (
-              people.map((person) => (
-                <TableRow key={person.id}>
-                  <TableCell className="font-medium">{person.name}</TableCell>
-                  <TableCell>{person.age} anos</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => handleDelete(person.id)}
-                      disabled={loading}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        data={people}
+        columns={columns}
+        loading={loading}
+        emptyMessage="Nenhuma pessoa cadastrada"
+        getRowKey={(person) => person.id}
+      />
     </div>
   );
 }
