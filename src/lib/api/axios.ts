@@ -18,16 +18,25 @@ const api: AxiosInstance = axios.create({
 });
 
 /**
- * Interceptor de requisição.
- * Adiciona o token de autenticação ao header Authorization quando disponível.
+ * Interceptor de requisição HTTP.
+ * 
+ * Funcionalidade:
+ * - Adiciona automaticamente o token de autenticação ao header Authorization
+ * - Token é recuperado do localStorage quando disponível
+ * - Formato: "Bearer {token}"
+ * 
+ * Verifica se está no ambiente do navegador (typeof window !== 'undefined')
+ * para evitar erros durante Server-Side Rendering (SSR) do Next.js.
  */
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Recupera o token do localStorage (ou sessionStorage, conforme necessário)
+    // Verifica se está no ambiente do navegador (não no servidor)
     if (typeof window !== 'undefined') {
+      // Recupera o token do localStorage
       const token = localStorage.getItem('token');
 
       // Se o token existir, adiciona ao header de autorização
+      // Formato padrão: "Bearer {token}"
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -36,20 +45,29 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    // Em caso de erro na requisição, rejeita a promise
     return Promise.reject(error);
   }
 );
 
 /**
- * Interceptor de resposta.
- * Trata tokens de autenticação e erros comuns (401, etc).
+ * Interceptor de resposta HTTP.
+ * 
+ * Funcionalidades:
+ * 1. Em caso de sucesso: verifica se a resposta contém um novo token e o armazena
+ * 2. Em caso de erro 401 (Unauthorized): remove token e redireciona para login
+ * 
+ * Tratamento de erros:
+ * - 401: Token inválido/expirado → remove token e redireciona para login
+ * - Outros erros: são rejeitados para serem tratados pelos componentes
  */
 api.interceptors.response.use(
   (response) => {
-    // Verifica se a resposta contém um token e o armazena
+    // Verifica se a resposta contém um novo token (útil para refresh tokens)
     if (response.data && typeof window !== 'undefined') {
       const token = response.data.access_token || response.data.token;
       if (token) {
+        // Armazena o novo token no localStorage
         localStorage.setItem('token', token);
       }
     }
@@ -57,17 +75,19 @@ api.interceptors.response.use(
     return response;
   },
   (error: AxiosError) => {
-    // Verifica se o erro é 401 (Unauthorized)
+    // Tratamento de erro 401 (Não autorizado)
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      // Remove o token do localStorage
+      // Remove o token inválido do localStorage
       localStorage.removeItem('token');
 
       // Redireciona para a página de login se não estiver já nela
+      // Evita loop de redirecionamento
       if (!window.location.href.includes('/auth')) {
         window.location.href = '/auth/login';
       }
     }
 
+    // Rejeita a promise para que o erro seja tratado pelo componente que fez a requisição
     return Promise.reject(error);
   }
 );

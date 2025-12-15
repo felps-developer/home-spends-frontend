@@ -31,12 +31,21 @@ export default function ReportsPage() {
     loadPersonTotals();
   }, []);
 
+  /**
+   * Carrega o relatório de totais por pessoa.
+   * 
+   * O relatório contém:
+   * - Para cada pessoa: total de receitas, despesas e saldo
+   * - Resumo geral: totais consolidados de todas as pessoas
+   * 
+   * Após carregar, define a aba ativa como "people" para exibir o relatório.
+   */
   async function loadPersonTotals() {
     setLoading(true);
     try {
       const { data } = await reportsResource.getPersonTotals();
       setPersonTotals(data);
-      setActiveTab("people");
+      setActiveTab("people"); // Ativa a aba de pessoas para exibir o relatório
     } catch (error) {
       console.error("Erro ao carregar relatório de pessoas:", error);
     } finally {
@@ -44,12 +53,21 @@ export default function ReportsPage() {
     }
   }
 
+  /**
+   * Carrega o relatório de totais por categoria.
+   * 
+   * O relatório contém:
+   * - Para cada categoria: total de receitas, despesas e saldo
+   * - Resumo geral: totais consolidados de todas as categorias
+   * 
+   * Após carregar, define a aba ativa como "categories" para exibir o relatório.
+   */
   async function loadCategoryTotals() {
     setLoading(true);
     try {
       const { data } = await reportsResource.getCategoryTotals();
       setCategoryTotals(data);
-      setActiveTab("categories");
+      setActiveTab("categories"); // Ativa a aba de categorias para exibir o relatório
     } catch (error) {
       console.error("Erro ao carregar relatório de categorias:", error);
     } finally {

@@ -68,17 +68,36 @@ export default function PeoplePage() {
     }
   }
 
+  /**
+   * Manipula a deleção de uma pessoa.
+   * 
+   * IMPORTANTE: Ao deletar uma pessoa, todas as transações associadas são deletadas
+   * automaticamente pelo backend (DeleteBehavior.Cascade).
+   * 
+   * Processo:
+   * 1. Solicita confirmação do usuário (operação irreversível)
+   * 2. Se confirmado, chama a API para deletar
+   * 3. Recarrega os dados para atualizar a tabela
+   * 
+   * @param id Identificador único da pessoa a ser deletada.
+   */
   async function handleDelete(id: string) {
+    // Solicita confirmação do usuário antes de deletar
+    // Avisa que as transações também serão deletadas
     if (!confirm("Tem certeza que deseja deletar esta pessoa? Todas as transações associadas serão apagadas.")) {
       return;
     }
 
     setLoading(true);
     try {
+      // Chama a API para deletar a pessoa
       await resource.destroy(id);
+      
+      // Recarrega os dados para atualizar a tabela
       await loadData();
     } catch (error: any) {
       console.error("Erro ao deletar pessoa:", error);
+      // Exibe mensagem de erro do backend ou mensagem genérica
       alert(error.response?.data?.message || "Erro ao deletar pessoa");
     } finally {
       setLoading(false);

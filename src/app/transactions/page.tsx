@@ -72,26 +72,43 @@ export default function TransactionsPage() {
     }
   }
 
-  // Filtra categorias disponíveis baseado no tipo de transação e pessoa selecionada
+  /**
+   * Filtra categorias disponíveis baseado no tipo de transação e pessoa selecionada.
+   * 
+   * Regras de negócio aplicadas:
+   * 1. Se nenhuma pessoa estiver selecionada, retorna todas as categorias
+   * 2. Se a pessoa for menor de idade (< 18 anos) e o tipo for Receita, retorna array vazio
+   *    (menores só podem ter despesas)
+   * 3. Filtra categorias que permitem o tipo de transação selecionado:
+   *    - Para Despesa: categorias com Purpose = Expense ou Both
+   *    - Para Receita: categorias com Purpose = Income ou Both
+   * 
+   * @returns Array de categorias disponíveis para a combinação pessoa/tipo selecionada.
+   */
   function getAvailableCategories() {
+    // Se não há pessoa selecionada, retorna todas as categorias
     if (!formData.personId) return categories;
 
+    // Busca a pessoa selecionada
     const person = people.find((p) => p.id === formData.personId);
     if (!person) return categories;
 
-    // Se for menor de idade, só pode ter despesas
+    // Regra de negócio: Menores de idade só podem ter despesas
+    // Se for menor e o tipo for Receita, não há categorias disponíveis
     if (person.age < 18 && formData.type === TransactionType.Income) {
       return [];
     }
 
-    // Filtra categorias que permitem o tipo de transação
+    // Filtra categorias que permitem o tipo de transação selecionado
     return categories.filter((cat) => {
       if (formData.type === TransactionType.Expense) {
+        // Para despesas: aceita categorias de despesa ou ambas
         return (
           cat.purpose === CategoryPurpose.Expense ||
           cat.purpose === CategoryPurpose.Both
         );
       } else {
+        // Para receitas: aceita categorias de receita ou ambas
         return (
           cat.purpose === CategoryPurpose.Income ||
           cat.purpose === CategoryPurpose.Both
@@ -100,13 +117,30 @@ export default function TransactionsPage() {
     });
   }
 
+  /**
+   * Manipula a criação de uma nova transação.
+   * 
+   * Validações aplicadas:
+   * 1. Todos os campos obrigatórios devem estar preenchidos
+   * 2. O valor deve ser um número positivo
+   * 3. Menores de idade não podem ter receitas (apenas despesas)
+   * 
+   * Após criação bem-sucedida:
+   * - Fecha o diálogo
+   * - Limpa o formulário
+   * - Recarrega os dados da tabela
+   */
   async function handleCreate() {
+    // Converte o valor de string para número
     const value = parseFloat(formData.value);
+    
+    // Validação: verifica se todos os campos obrigatórios estão preenchidos
     if (!formData.description || !formData.value || isNaN(value) || value <= 0 || !formData.categoryId || !formData.personId) {
       alert("Preencha todos os campos corretamente. O valor deve ser um número positivo.");
       return;
     }
 
+    // Validação de regra de negócio: menores de idade só podem ter despesas
     const person = people.find((p) => p.id === formData.personId);
     if (person && person.age < 18 && formData.type === TransactionType.Income) {
       alert("Menores de idade só podem ter despesas");
@@ -115,6 +149,7 @@ export default function TransactionsPage() {
 
     setLoading(true);
     try {
+      // Cria a transação através da API
       await transactionsResource.create({
         description: formData.description,
         value: value,
@@ -122,7 +157,11 @@ export default function TransactionsPage() {
         categoryId: formData.categoryId,
         personId: formData.personId,
       });
+      
+      // Fecha o diálogo após sucesso
       setOpen(false);
+      
+      // Limpa o formulário para próxima criação
       setFormData({
         description: "",
         value: "",
@@ -130,9 +169,12 @@ export default function TransactionsPage() {
         categoryId: "",
         personId: "",
       });
+      
+      // Recarrega os dados para atualizar a tabela
       await loadData();
     } catch (error: any) {
       console.error("Erro ao criar transação:", error);
+      // Exibe mensagem de erro do backend ou mensagem genérica
       alert(error.response?.data?.message || "Erro ao criar transação");
     } finally {
       setLoading(false);
